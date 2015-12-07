@@ -144,7 +144,7 @@ int saveWave(struct waveData wave, char* filename)
 		//read data
 		int bytesPerSample = wave.bitsPerSample / 8;
 		int sampleCount =  wave.subChunk2Size / bytesPerSample;
-
+/*
 		//impulse response - echo
 		int IRSize = 6;
 		float IR[IRSize];
@@ -183,7 +183,8 @@ int saveWave(struct waveData wave, char* filename)
 		}
 
 		//clean up
-		free(newData);
+		free(newData);*/
+		fwrite(wave.data, 1, bytesPerSample*sampleCount, out);
 		fclose(out);
 		printf("Closing %s...\n",filename);
 	}
@@ -195,18 +196,62 @@ int saveWave(struct waveData wave, char* filename)
 	return 1;
 }
 
+/*****************************************************************************
+*
+*    Function:     convolve
+*
+*    Description:  Convolves two signals, producing an output signal.
+*                  The convolution is done in the time domain using the
+*                  "Input Side Algorithm" (see Smith, p. 112-115).
+*
+*    Parameters:   x[] is the signal to be convolved
+*                  N is the number of samples in the vector x[]
+*                  h[] is the impulse response, which is convolved with x[]
+*                  M is the number of samples in the vector h[]
+*                  y[] is the output signal, the result of the convolution
+*                  P is the number of samples in the vector y[].  P must
+*                       equal N + M - 1
+*
+*****************************************************************************/
+/*
+void convolve(float x[], int N, float h[], int M, float y[], int P)
+{
+  int n, m;
+
+  //  Make sure the output buffer is the right size: P = N + M - 1
+  if (P != (N + M - 1)) {
+    printf("Output signal vector is the wrong size\n");
+    printf("It is %-d, but should be %-d\n", P, (N + M - 1));
+    printf("Aborting convolution\n");
+    return;
+  }
+
+  //  Clear the output buffer y[] to all zero values
+  for (n = 0; n < P; n++)
+    y[n] = 0.0;
+
+  //  Do the convolution
+  //  Outer loop:  process each input value x[n] in turn
+  for (n = 0; n < N; n++) {
+  //    Inner loop:  process x[n] with each sample of h[]
+    for (m = 0; m < M; m++)
+      y[n+m] += x[n] * h[m];
+  }
+}*/
+
 int main(int argc, char* argv[])
 {
 	char* inSoundWav = argv[1];
-	//char*	IRwav = argv[2];
-	char* outSoundWav = argv[2];
+	char*	IRwav = argv[2];
+	char* outSoundWav = argv[3];
 
 	struct waveData soundIn = loadWave(inSoundWav);
+	struct waveData IRSound = loadWave(IRwav);
 
 	if(soundIn.valid)
 		printWave(soundIn);
 
-
+	//convolve();
 
 	saveWave(soundIn, outSoundWav);
 	free(soundIn.data);
