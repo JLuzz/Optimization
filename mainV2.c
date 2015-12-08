@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 #define ARRAY_SIZE(array) sizeof(array) / sizeof(array[0])
 #define SIZE       8
@@ -174,28 +175,9 @@ void add1Zero(double data[], int size)
 	}
 }
 
-// if the data arrays are not equal zero pad one of them
+//Was gonna be nice but realloc was giving me errrors in HERE!!!!
 void zeroPad(double data1[], int size1, double data2[], int size2)
-{
-	if (size1 > size2){
-		data2 = realloc(data2, sizeof(double) * size1);
-		if(size1 % 2 != 0){
-			add1Zero(data1, size1);
-			add1Zero(data2, size1);
-		}
-	}else if(size2 > size1){
-		data1 = realloc(data1, sizeof(double) * size2);
-		if(size2 % 2 != 0){
-			add1Zero(data1, size2);
-			add1Zero(data2, size2);
-		}
-	}else{
-		if(size1 %2 != 0){
-			add1Zero(data1, size1);
-			add1Zero(data2, size1);
-		}
-	}
-}
+{}
 
 //  Shiny New Convolution stuff
 //  The four1 FFT from Numerical Recipes in C,
@@ -277,7 +259,37 @@ int main(int argc, char* argv[])
 	int OUTBytesPerSample = soundOut.bitsPerSample / 8;
 	int OUTNumSample = soundOut.subChunk2Size / OUTBytesPerSample;
 */
-	zeroPad(soundIn.data, INSize, IRSound.data, IRSize);
+	//zeroPad(soundIn.data, INSize, IRSound.data, IRSize);
+
+//DO ZERO PADDING STUFF IN HERE I KNOW IM SO BAD, but i suck and realloc wasnt working for me in a Function
+if (INSize > IRSize){
+		 IRSound.data = realloc(IRSound.data, sizeof(double) * INSize);
+		 memset(IRSound.data + IRSize, 0, sizeof(double) * (INSize - IRSize));
+		 if(INSize % 2 != 0){
+	 		add1Zero(soundIn.data, INSize);
+	 		add1Zero(soundIn.data, INSize);
+	 	}
+	}else if(IRSize > INSize){
+		soundIn.data = realloc(soundIn.data, sizeof(double) * IRSize);
+		memset(soundIn.data + INSize, 0, sizeof(double) * (IRSize-INSize));
+		if(IRSize % 2 != 0){
+			add1Zero(soundIn.data, IRSize);
+			add1Zero(IRSound.data, IRSize);
+		}
+		}else{
+		if(INSize % 2 != 0){
+			add1Zero(soundIn.data, INSize);
+			add1Zero(IRSound.data, INSize);
+		}
+	}
+
+	//perform four1 on the waves
+
+	//inputWav
+	four1();
+	//IRwav
+	four1();
+
 
 
 	if(soundIn.valid)
