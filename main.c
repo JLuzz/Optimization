@@ -22,7 +22,7 @@ struct waveData{
 	char subChunk2ID[4];
 	int subChunk2Size;
 
-	short* data;
+	double* data;
 
 };
 
@@ -82,9 +82,8 @@ struct waveData loadWave(char* filename)
 		//read data
 		int bytesPerSample = wave.bitsPerSample/8;
 		int numSamples = wave.subChunk2Size / bytesPerSample;
-		wave.data = (short*) malloc(sizeof(short) * numSamples);
+		wave.data = (double*) malloc(sizeof(double) * numSamples);
 
-		//fread(data, 1, bytesPerSample*numSamples, in);
 
 		int i=0;
 		short sample=0;
@@ -144,46 +143,7 @@ int saveWave(struct waveData wave, char* filename)
 		//read data
 		int bytesPerSample = wave.bitsPerSample / 8;
 		int sampleCount =  wave.subChunk2Size / bytesPerSample;
-/*
-		//impulse response - echo
-		int IRSize = 6;
-		float IR[IRSize];
-		IR[0] = 0.0;
-		IR[1] = 1.0;
-		IR[2] = 1.0;
-		IR[3] = 1.0;
-		IR[4] = 1.0;
-		IR[5] = 0.0;
 
-		//write the data
-		float* newData = (float*) malloc(sizeof(float) * (sampleCount + IRSize - 1));
-		float maxSample = -1;
-		float MAX_VAL = 32767.f;	//FIXME: find based on bits per sample
-
-		for(int i=0; i<sampleCount; ++i)
-		{
-
-			//convolve
-			for(int j=0; j<IRSize; ++j)
-				newData[i+j] += ((float) wave.data[i] / MAX_VAL) * IR[j];
-
-			//Keep track of max value for scaling
-			if(i==0)
-				maxSample = newData[0];
-			else if(newData[i] > maxSample)
-				maxSample = newData[i];
-		}
-
-		//scale and re write the data
-		for(int i=0; i<sampleCount + IRSize - 1; ++i)
-		{
-			newData[i] = (newData[i] / maxSample) ;
-			short sample = (short) (newData[i] * MAX_VAL);
-			fwrite(&sample, 1, bytesPerSample, out);
-		}
-
-		//clean up
-		free(newData);*/
 		fwrite(wave.data, 1, bytesPerSample*sampleCount, out);
 		fclose(out);
 		printf("Closing %s...\n",filename);
@@ -213,31 +173,54 @@ int saveWave(struct waveData wave, char* filename)
 *                       equal N + M - 1
 *
 *****************************************************************************/
-/*
-void convolve(float x[], int N, float h[], int M, float y[], int P)
-{
-  int n, m;
 
-  //  Make sure the output buffer is the right size: P = N + M - 1
-  if (P != (N + M - 1)) {
+void convolve(double x[], int N, double h[], int M, double y[], int P)
+{
+
+	if (P != (N + M - 1))
+	{
     printf("Output signal vector is the wrong size\n");
     printf("It is %-d, but should be %-d\n", P, (N + M - 1));
     printf("Aborting convolution\n");
     return;
   }
 
-  //  Clear the output buffer y[] to all zero values
-  for (n = 0; n < P; n++)
-    y[n] = 0.0;
+	float* newData = (float*) malloc(sizeof(float) * P);
+	float maxSample = -1;
+	float MAX_VAL = 32767;
 
-  //  Do the convolution
-  //  Outer loop:  process each input value x[n] in turn
-  for (n = 0; n < N; n++) {
-  //    Inner loop:  process x[n] with each sample of h[]
-    for (m = 0; m < M; m++)
-      y[n+m] += x[n] * h[m];
-  }
-}*/
+	for (int n = 0; n < P; n++)
+	{
+		newData[n] = 0.0;
+		y[n] = 0.0;
+	}
+
+	for(int i=0; i < N; i++)
+	{
+
+		//convolve
+		for(int j=0; j < M; j++)
+			newData[i+j] += ((float) x[i] / MAX_VAL) * (float) h[j];
+
+		//Keep track of max value for scaling
+		if(i==0)
+			maxSample = newData[0];
+		else if(newData[i] > maxSample)
+			maxSample = newData[i];
+	}
+
+	//scale and re write the data
+	for(int i=0; i < P; i++)
+	{
+		newData[i] = (newData[i] / maxSample);
+		double sample = (double) (newData[i] * MAX_VAL);
+		y[i] = sample;
+	}
+
+	//clean up
+	free(newData);
+
+}
 
 int main(int argc, char* argv[])
 {
@@ -245,14 +228,37 @@ int main(int argc, char* argv[])
 	char*	IRwav = argv[2];
 	char* outSoundWav = argv[3];
 
-	struct waveData soundIn = loadWave(inSoundWav);
 	struct waveData IRSound = loadWave(IRwav);
+	struct waveData soundIn = loadWave(inSoundWav);
+	struct waveData soundOut = loadWave(inSoundWav);
+
+	int INbytesPerSample = soundIn.bitsPerSample / 8;
+	int INNumSample = soundIn.subChunk2Size / INbytesPerSample;
+
+	int IRbytesPerSample = IRSound.bitsPerSample / 8;
+	int IRNumSample = IRSound.subChunk2Size / IRbytesPerSample;
+
+	soundOut.subChunk2Size = 2 * (INNumSample + IRNumSample - 1);
+	soundOut.chunkSize = 36 + soundOut.subChunk2Size;
+
+	int OUTBytesPerSample = soundOut.bitsPerSample / 8;
+	int OUTNumSample = soundOut.subChunk2Size / OUTBytesPerSample;
+
+	free(soundOut.data);
+
+	soundOut.data = (double*) malloc(sizeof(double) * OUTNumSample);
 
 	if(soundIn.valid)
 		printWave(soundIn);
+	if(IRSound.valid)
+		printWave(IRSound);
+	if(soundOut.valid)
+		printWave(soundOut);
 
-	//convolve();
+	convolve(soundIn.data, INNumSample, IRSound.data, IRNumSample, soundOut.data, OUTNumSample);
 
-	saveWave(soundIn, outSoundWav);
+	saveWave(soundOut, outSoundWav);
 	free(soundIn.data);
+	free(soundOut.data);
+	free(IRSound.data);
 }
